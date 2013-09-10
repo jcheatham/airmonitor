@@ -5,6 +5,7 @@ describe 'App' do
 
   let(:config) { YAML.load_file('spec/config.yml') }
   let(:credentials) { "#{config.fetch('subdomain')}/#{config.fetch('auth_token')}" }
+  let(:store) { EmptyStore.new }
 
   def app
     Sinatra::Application.new

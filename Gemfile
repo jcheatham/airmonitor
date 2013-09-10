@@ -5,6 +5,7 @@ gem 'sinatra'
 gem 'json'
 gem 'rake'
 gem 'rack-ssl', :require => 'rack/ssl'
+gem 'dalli'
 gem 'airbrake-api'
 
 group :development do
