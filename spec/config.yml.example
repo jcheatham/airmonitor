@@ -1,3 +1,4 @@
 subdomain: aaa
 auth_token: bbb # NOT THE API KEY <-> got to airbrake, click on settings, copy auth_token
-expected_project: ccc
+expected_project_name: ccc
+expected_project_id: ddd

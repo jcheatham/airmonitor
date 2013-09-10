@@ -18,6 +18,13 @@ describe 'App' do
 
   it "fetches project" do
     get "/projects/#{credentials}.json"
-    last_response.body.should include config.fetch('expected_project')
+    last_response.body.should include config.fetch('expected_project_name')
+  end
+
+  it "fetches errors" do
+    get "/errors/#{credentials}/#{config.fetch('expected_project_id')}.json"
+    response = JSON.parse(last_response.body)
+    response.size.should >= 1
+    response.first.first["error_class"].should_not == nil
   end
 end
