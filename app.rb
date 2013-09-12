@@ -52,13 +52,14 @@ def cache_key
   @cache_key ||= "air_monitor#{request.path}"
 end
 
-def merge(notices, new_notices)
-  notices.merge!(new_notices) do |key,oldval,newval|
-    newval[:notices].concat(oldval[:notices]).sort_by!{|a| a[:created_at] }.reverse!.uniq!{|b| b[:id] }
+def merge(error_notices, new_error_notices)
+  error_notices.merge!(new_error_notices) do |key,oldval,newval|
+    newval[:notices] = Array(newval[:notices]).concat(oldval[:notices]).sort_by!{|a| a[:created_at] }.reverse!.uniq!{|b| b[:id] }
+    newval[:notices].slice!(30, newval[:notices].length)
     newval
   end
-  notices.each{|k,v| v[:frequency] = frequency(v[:notices]) || rough_frequency(v) }
-  notices
+  error_notices.each{|k,v| v[:frequency] = frequency(v[:notices]) || rough_frequency(v) }
+  error_notices
 end
 
 def frequency(notices)
