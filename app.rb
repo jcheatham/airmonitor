@@ -72,7 +72,9 @@ def frequency(notices)
 end
 
 def rough_frequency(error)
-  error[:total_notices] / (error[:most_recent_notice_at] - error[:created_at])
+  range = error[:most_recent_notice_at] - error[:created_at]
+  range = 1 if range < 1
+  (error[:total_notices] || 1) / range
 end
 
 def airbrake
