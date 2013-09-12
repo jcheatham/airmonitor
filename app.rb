@@ -3,10 +3,6 @@ Bundler.require
 require 'hashie'
 require 'logger'
 
-ENV["MEMCACHE_SERVERS"] = ENV["MEMCACHIER_SERVERS"] if ENV["MEMCACHIER_SERVERS"]
-ENV["MEMCACHE_USERNAME"] = ENV["MEMCACHIER_USERNAME"] if ENV["MEMCACHIER_USERNAME"]
-ENV["MEMCACHE_PASSWORD"] = ENV["MEMCACHIER_PASSWORD"] if ENV["MEMCACHIER_PASSWORD"]
-
 TTL_PROJECTS = 60*60
 TTL_ERRORS = 24*60*60
 ERROR_REFRESH = 60
@@ -84,7 +80,7 @@ def projects
 end
 
 def store
-  @store ||= Dalli::Client.new(nil)
+  @store ||= Dalli::Client.new(ENV["MEMCACHIER_SERVERS"].split(","), {:username => ENV["MEMCACHIER_USERNAME"], :password => ENV["MEMCACHIER_PASSWORD"]})
 end
 
 def recent_error_notices(since)
