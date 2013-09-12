@@ -27,4 +27,7 @@ describe 'App' do
     response.size.should >= 1
     response.first.first["error_class"].should_not == nil
   end
+
+  it "merges errors" do
+  end
 end

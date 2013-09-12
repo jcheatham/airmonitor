@@ -1,0 +1,123 @@
+<html>
+<head>
+  <title>AirMonitor</title>
+  <link rel="shortcut icon" href="/favicon.ico"/>
+  <link rel="apple-touch-icon" href="/favicon.ico"/>
+  <style>
+    .error-details { width: 25px; }
+    .error-frequency { width: 50px; }
+    .error-first { width: 100px; }
+    .error-last { width: 100px; }
+    .error-count { text-align:right; width: 50px;}
+    .error-message { }
+  </style>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/css/jquery.dataTables.css">
+  <script type="text/javascript" charset="utf8" src="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/jquery.dataTables.min.js"></script>
+  <script>
+    $(function(){ console.log("Hello"); });
+  </script>
+</head>
+<body>
+<div id="content">
+  <select id="projects" name="projects">Project
+    <option value="0">-- Select Project --</option>
+    <% for @project in projects %>
+      <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
+    <% end %>
+  </select>
+  <p id="status">-</p>
+  <div>
+    <table id="exception_table" cellpadding="0" cellspacing="0" border="0"></table>
+  </div>
+</div>
+<script>
+  $(document).ready(function(){
+    var token = '<%= params[:token] %>',
+      project_id,
+      projects = {},
+      project_select = $('#projects'),
+      exception_table = $('#exception_table'),
+      update_status = $('#status');
+
+    exception_table.dataTable({
+      "aoColumns":[
+        {"sTitle":"","sClass":"error-details","bSortable":false},
+        {"sTitle":"Frequency","sClass":"error-frequency"},
+        {"sTitle":"First","sClass":"error-first"},
+        {"sTitle":"Last","sClass":"error-last"},
+        {"sTitle":"Count","sClass":"error-count"},
+        {"sTitle":"Message","sClass":"error-message"}]
+    });
+
+    project_select.on('change', function() {
+      update_status.text("-");
+      project_id = project_select.val();
+      if (project_id == "0") { project_id = undefined; return; }
+      projects[project_id] = projects[project_id] || {last_update: 0, waiting: false, errors: {}};
+    });
+
+
+    function add_details(oTable, group)
+    {
+      var aaData = [];
+      for (var i in projects[project_id].errors[group].notices) {
+        var n = projects[project_id].errors[group].notices[i];
+        aaData.push(['<a href="https://<%= params[:subdomain] %>.airbrake.io/groups/'+n.group_id+'/notices/'+n.id+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a>', n.error_message]);
+      }
+      return $('<table cellpadding="0" cellspacing="0" border="0" style="padding-left:100px;"></table>')
+        .dataTable({"aoColumns":[{"sTitle": "When"},{"sTitle": "Message"}],"aaData":aaData}).parent().html(); // [0].outerHTML;
+    }
+
+    $(document).on('click', '#exception_table span.details', function(){
+    //$('#exception_table span.details').on('click', function(){
+      var tr = $(this).parents('tr');
+      var group = tr.find('input[name="group"]').val();
+      tr = tr[0];
+      if (exception_table.fnIsOpen(tr))
+      {
+        this.innerHTML = "\u25B6";
+        exception_table.fnClose(tr);
+      }
+      else
+      {
+        this.innerHTML = "\u25BC";
+        exception_table.fnOpen(tr, add_details(exception_table, group));
+      }
+    });
+
+    function check_for_updates() {
+      if (!token || !project_id) return;
+      var project = projects[project_id];
+      var now = Math.round(Date.now()/1000);
+      var elapsed = now - project.last_update;
+      if (elapsed < 60 || (project.waiting && (elapsed < 300 || !project.last_update))) return;
+
+      project.waiting = true;
+      update_status.text("Fetching updates...");
+
+      $.ajax({
+        dataType: "json", url: "/errors/<%= params[:subdomain] %>/<%= params[:token] %>/"+project_id+".json"
+      }).done(function(data){
+        exception_table.fnClearTable();
+        project.errors = data;
+        for (var i in project.errors) {
+          var e = project.errors[i];
+          var details = '<span class="details">\u25B6</span><input type="hidden" name="group" value="'+e.id+'">';
+          var message = "<a href=\"https://<%= params[:subdomain] %>.airbrake.io/groups/"+e.id+"\" target=\"_blank\">"+e.error_message+"</a>";
+          exception_table.fnAddData([ details, e.frequency.toFixed(2), e.created_at, e.most_recent_notice_at, e.notices_count, message ]);
+        }
+      }).always(function(data){
+        update_status.text("-");
+        project.waiting = false;
+        project.last_update = now;
+        //exception_table.fnDraw();
+      });
+    };
+
+    setInterval(check_for_updates, 1000);
+  });
+</script>
+</body>
+</html>
