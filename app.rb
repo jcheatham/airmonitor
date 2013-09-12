@@ -86,11 +86,7 @@ def projects
 end
 
 def store
-  @store ||= if ENV["MEMCACHIER_SERVERS"]
-    Dalli::Client.new(ENV["MEMCACHIER_SERVERS"].split(","), {:username => ENV["MEMCACHIER_USERNAME"], :password => ENV["MEMCACHIER_PASSWORD"]})
-  else
-    Dalli::Client.new(nil)
-  end
+  @store ||= Dalli::Client.new
 end
 
 def recent_error_notices(since)
