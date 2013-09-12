@@ -62,12 +62,12 @@
     function add_details(oTable, group)
     {
       var aaData = [];
+      var data = "";
       for (var i in projects[project_id].errors[group].notices) {
         var n = projects[project_id].errors[group].notices[i];
-        aaData.push(['<a href="https://<%= params[:subdomain] %>.airbrake.io/groups/'+n.group_id+'/notices/'+n.id+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a>', n.error_message]);
+        data += '<tr><td><a href="https://<%= params[:subdomain] %>.airbrake.io/groups/'+n.group_id+'/notices/'+n.id+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a></td><td>'+ n.error_message +'</td></tr>';
       }
-      return $('<table cellpadding="0" cellspacing="0" border="0" style="padding-left:100px;"></table>')
-        .dataTable({"aoColumns":[{"sTitle": "When"},{"sTitle": "Message"}],"aaData":aaData}).parent().html(); // [0].outerHTML;
+      return '<table cellpadding="0" cellspacing="0" border="0" style="padding-left:100px;">'+data+'</table>';
     }
 
     $(document).on('click', '#exception_table span.details', function(){
