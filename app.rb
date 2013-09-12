@@ -53,14 +53,19 @@ def cache_key
 end
 
 def merge(error_notices, new_error_notices)
+  # NOTE TO SELF, this block is only evaluated when two keys collide and need a merge resolution
   error_notices.merge!(new_error_notices) do |key,oldval,newval|
     newval[:notices] = Array(newval[:notices])
     newval[:notices].concat(oldval[:notices]).sort_by!{|a| a[:created_at] }.reverse!.uniq!{|b| b[:id] }
     newval[:notices].slice!(30, newval[:notices].length)
     newval
   end
-  error_notices.each{|k,v| v[:frequency] = frequency(v[:notices]) || rough_frequency(v) }
-  error_notices
+  cutoff = Time.now - 12*60*60
+  error_notices.select do |k,v|
+    v[:notices].select!{|n| n.created_at > cutoff }
+    v[:frequency] = frequency(v[:notices]) || rough_frequency(v)
+    v[:notices].length > 0 || v[:frequency] > 1
+  end
 end
 
 def frequency(notices)
