@@ -94,7 +94,7 @@
       var project = projects[project_id];
       var now = Math.round(Date.now()/1000);
       var elapsed = now - project.last_update;
-      if (elapsed < 60 || (project.waiting && (elapsed < 300 || !project.last_update))) return;
+      if (elapsed < 30 || (project.waiting && (elapsed < 300 || !project.last_update))) return;
 
       project.waiting = true;
       update_status.text("Fetching updates...");
