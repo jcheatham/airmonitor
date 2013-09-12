@@ -15,23 +15,6 @@
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
   <link rel="stylesheet" type="text/css" href="//ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/css/jquery.dataTables.css">
   <script type="text/javascript" charset="utf8" src="//ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/jquery.dataTables.min.js"></script>
-  <script>
-    $(function(){ console.log("Hello"); });
-  </script>
-</head>
-<body>
-<div id="content">
-  <select id="projects" name="projects">Project
-    <option value="0">-- Select Project --</option>
-    <% for @project in projects %>
-      <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
-    <% end %>
-  </select>
-  <p id="status">-</p>
-  <div>
-    <table id="exception_table" cellpadding="0" cellspacing="0" border="0"></table>
-  </div>
-</div>
 <script>
   $(document).ready(function(){
     var token = '<%= params[:token] %>',
@@ -63,7 +46,6 @@
     {
       var data = '<div id="error_details">Showing '+projects[project_id].errors[group].notices.length+' notices.<br /><table cellpadding="0" cellspacing="0" border="0" style="padding-left:100px;">';
       for (var i in projects[project_id].errors[group].notices) {
-        var notice_count = ;
         var n = projects[project_id].errors[group].notices[i];
         data += '<tr><td><a href="https://<%= params[:subdomain] %>.airbrake.io/groups/'+n.group_id+'/notices/'+n.id+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a></td><td>'+ n.error_message +'</td></tr>';
       }
@@ -120,5 +102,18 @@
     setInterval(check_for_updates, 1000);
   });
 </script>
+</head>
+<body>
+<div id="content">
+  <select id="projects" name="projects">Project
+    <option value="0">-- Select Project --</option>
+    <% for @project in projects %>
+      <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
+    <% end %>
+  </select><span id="status">-</span><br><br>
+  <div>
+    <table id="exception_table" cellpadding="0" cellspacing="0" border="0"></table>
+  </div>
+</div>
 </body>
 </html>
