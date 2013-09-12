@@ -50,7 +50,7 @@ end
 
 def merge(notices, new_notices)
   notices.merge!(new_notices) do |key,oldval,newval|
-    newval[:notices].concat(oldval[:notices]).sort_by!{|a| a[:created_at] }.reverse.uniq!{|b| b[:id] }
+    newval[:notices].concat(oldval[:notices]).sort_by!{|a| a[:created_at] }.reverse!.uniq!{|b| b[:id] }
     newval
   end
   notices.each{|k,v| v[:frequency] = frequency(v[:notices]) || rough_frequency(v) }
