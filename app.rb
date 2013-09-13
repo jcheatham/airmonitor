@@ -36,7 +36,13 @@ end
 
 get '/errors/:subdomain/:token/:project.json' do
   now = Time.now
-  old_errors, since = store.get(cache_key) || [{}, Time.at(0)]
+  begin
+    old_errors, since = store.get(cache_key) || [{}, Time.at(0)]
+  rescue Exception => e
+    puts "Ignoring #{e}, cache probably poisoned, will just refetch everything"
+  end
+  old_errors ||= {}
+  since ||= Time.at(0)
   current_errors = if ((now - since) > ERROR_REFRESH)
     current_errors = merge(old_errors, recent_error_notices(since))
     store.set(cache_key, [current_errors, now], TTL_ERRORS)
