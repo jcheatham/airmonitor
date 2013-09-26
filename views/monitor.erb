@@ -6,10 +6,12 @@
   <style>
     .error-details { width: 20px; cursor: pointer;}
     .error-frequency { width: 50px; }
-    .error-first { width: 100px; }
-    .error-last { width: 100px; }
-    .error-count { text-align:right; width: 50px;}
+    .error-first { width: 100px; white-space: nowrap; }
+    .error-last { width: 100px; white-space: nowrap; }
+    .error-count { text-align:right; width: 50px; }
+    .error-env { width: 20px; }
     .error-message { }
+    .notice-at { white-space: nowrap; }
   </style>
 
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
@@ -31,8 +33,20 @@
         {"sTitle":"First","sClass":"error-first"},
         {"sTitle":"Last","sClass":"error-last"},
         {"sTitle":"Count","sClass":"error-count"},
-        {"sTitle":"Message","sClass":"error-message"}]
+        {"sTitle":"Env","sClass":"error-env"},
+        {"sTitle":"Message","sClass":"error-message"}
+        ]
     });
+
+    $.fn.dataTableExt.afnFiltering.push(function(oSettings, aData, iDataIndex) {
+      switch (aData[5]) {
+        case "M": return $('#master').prop('checked');
+        case "S": return $('#staging').prop('checked');
+        case "P": return $('#production').prop('checked');
+      }
+      return true;
+    });
+    $('.env_selector').on('change', function() { exception_table.fnDraw(); });
 
     project_select.on('change', function() {
       update_status.text("-");
@@ -47,7 +61,7 @@
       var data = '<div id="error_details">Showing '+projects[project_id].errors[group].notices.length+' notices.<br /><table cellpadding="0" cellspacing="0" border="0" style="padding-left:100px;">';
       for (var i in projects[project_id].errors[group].notices) {
         var n = projects[project_id].errors[group].notices[i];
-        data += '<tr><td><a href="https://<%= params[:subdomain] %>.airbrake.io/projects/'+project_id+'/groups/'+n.project_id+'/notices/'+n.uuid+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a></td><td>'+ n.error_message +'</td></tr>';
+        data += '<tr><td class="notice-at"><a href="https://<%= params[:subdomain] %>.airbrake.io/projects/'+project_id+'/groups/'+n.project_id+'/notices/'+n.uuid+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a></td><td>'+ n.error_message +'</td></tr>';
       }
       data += '</table></div>';
       return data;
@@ -89,7 +103,8 @@
           var e = project.errors[i];
           var details = '<span class="details">\u25B6</span><input type="hidden" name="group" value="'+e.id+'">';
           var message = '<a href="https://<%= params[:subdomain] %>.airbrake.io/projects/'+project_id+'/groups/'+e.id+'/notices/'+e.notices[0].uuid+'" target="_blank">'+e.error_message+'</a>';
-          exception_table.fnAddData([ details, e.frequency.toFixed(2), e.created_at, e.most_recent_notice_at, e.notices_count, message ]);
+          var env = (e.rails_env == "production" ? "P" : (e.rails_env == "staging" ? "S" : (e.rails_env == "master" ? "M" : e.rails_env)));
+          exception_table.fnAddData([ details, e.frequency.toFixed(2), e.created_at, e.most_recent_notice_at, e.notices_count, env , message]);
         }
       }).always(function(data){
         update_status.text("-");
@@ -111,6 +126,11 @@
       <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
     <% end %>
   </select><span id="status">-</span><br><br>
+  <div>
+    <label for="master">Master</label><input type="checkbox" id="master" class="env_selector">
+    <label for="staging">Staging</label><input type="checkbox" id="staging" class="env_selector">
+    <label for="production">Production</label><input type="checkbox" id="production" class="env_selector" checked="true">
+  </div>
   <div>
     <table id="exception_table" cellpadding="0" cellspacing="0" border="0"></table>
   </div>
