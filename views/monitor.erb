@@ -88,7 +88,7 @@
         for (var i in project.errors) {
           var e = project.errors[i];
           var details = '<span class="details">\u25B6</span><input type="hidden" name="group" value="'+e.id+'">';
-          var message = "<a href=\"https://<%= params[:subdomain] %>.airbrake.io/groups/"+e.id+"\" target=\"_blank\">"+e.error_message+"</a>";
+          var message = '<a href="https://<%= params[:subdomain] %>.airbrake.io/projects/groups/'+e.id+'/notices/'+e.notices[0].uuid+'" target="_blank">'+e.error_message+'</a>';
           exception_table.fnAddData([ details, e.frequency.toFixed(2), e.created_at, e.most_recent_notice_at, e.notices_count, message ]);
         }
       }).always(function(data){
