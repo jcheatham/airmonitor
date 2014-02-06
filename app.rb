@@ -78,7 +78,7 @@ def frequency(notices)
   return if notices.length < 2
   w = 0.5
   period = notices.each_cons(2).map{|a,b| a[:created_at] - b[:created_at] }.reverse.reduce(nil){|p,d| w*d + (1-w)*(p||d)}
-  period = w * (Time.now - notices.first[:created_at]) + (1-w) * period
+  period = w * ([Time.now, notices.map{|n|n[:created_at]}.max].max - notices.first[:created_at]) + (1-w) * period
   3600.0/period
 end
 
