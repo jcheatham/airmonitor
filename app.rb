@@ -43,8 +43,10 @@ get '/errors/:subdomain/:token/:project.json' do
   end
   old_errors ||= {}
   since ||= Time.at(0)
+  puts "(#{now} - #{since} => #{now - since}) > #{ERROR_REFRESH}"
   current_errors = if ((now - since) > ERROR_REFRESH)
     current_errors = merge(old_errors, recent_error_notices(since))
+    puts "Storing #{current_errors.count} errors at #{now}"
     store.set(cache_key, [current_errors, now], TTL_ERRORS)
     current_errors
   else
@@ -104,6 +106,7 @@ end
 
 def recent_error_notices(since)
   errors = airbrake.errors(:page => 1, :project_id => params[:project]) || []
+  puts "Selecting errors since #{since}"
   errors.select!{|e| e[:most_recent_notice_at] > since }
   Parallel.map(errors, :in_threads => 10) do |error|
     begin
