@@ -37,20 +37,25 @@ end
 get '/errors/:subdomain/:token/:project.json' do
   now = Time.now
   begin
-    old_errors, since = store.get(cache_key) || [{}, Time.at(0)]
+    last_refresh, last_error, errors = store.get(cache_key) || [Time.at(0), Time.at(0), {}]
   rescue Exception => e
     puts "Ignoring #{e}, cache probably poisoned, will just refetch everything"
   end
-  old_errors ||= {}
-  since ||= Time.at(0)
-  puts "(#{now} - #{since} => #{now - since}) > #{ERROR_REFRESH}"
-  current_errors = if ((now - since) > ERROR_REFRESH)
-    current_errors = merge(old_errors, recent_error_notices(since))
-    puts "Storing #{current_errors.count} errors at #{now}"
-    store.set(cache_key, [current_errors, now], TTL_ERRORS)
+
+  # safety net in case the cache returns nils
+  last_refresh ||= Time.at(0)
+  last_error   ||= Time.at(0)
+  errors       ||= {}
+
+  puts "#{now} - #{last_refresh} = #{now - last_refresh}"
+  current_errors = if ((now - last_refresh) > ERROR_REFRESH)
+    current_errors = merge(errors, recent_error_notices(last_error))
+    last_error = current_errors.values.max_by(&:most_recent_notice_at).most_recent_notice_at
+    puts "Storing #{current_errors.count} errors with last_error at #{last_error}"
+    store.set(cache_key, [now, last_error, current_errors], TTL_ERRORS)
     current_errors
   else
-    old_errors
+    errors
   end
 
   JSON.dump current_errors
