@@ -1,22 +1,29 @@
-<html>
-<head>
-  <title>AirMonitor</title>
-  <link rel="shortcut icon" href="/favicon.ico"/>
-  <link rel="apple-touch-icon" href="/favicon.ico"/>
-  <style>
-    .error-details { width: 20px; cursor: pointer;}
-    .error-frequency { width: 50px; }
-    .error-first { width: 100px; white-space: nowrap; }
-    .error-last { width: 100px; white-space: nowrap; }
-    .error-count { text-align:right; width: 50px; }
-    .error-env { width: 20px; }
-    .error-message { }
-    .notice-at { white-space: nowrap; }
-  </style>
+<style>
+  .error-details { width: 20px; cursor: pointer;}
+  .error-frequency { width: 50px; }
+  .error-first { width: 100px; white-space: nowrap; }
+  .error-last { width: 100px; white-space: nowrap; }
+  .error-count { text-align:right; width: 50px; }
+  .error-env { width: 20px; }
+  .error-message { }
+  .notice-at { white-space: nowrap; }
+</style>
 
-  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-  <link rel="stylesheet" type="text/css" href="//ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/css/jquery.dataTables.css">
-  <script type="text/javascript" charset="utf8" src="//ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/jquery.dataTables.min.js"></script>
+<select id="projects" name="projects">Project
+  <option value="0">-- Select Project --</option>
+  <% for @project in projects %>
+    <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
+  <% end %>
+</select><span id="status">-</span><br><br>
+<div>
+  <label for="master">Master</label><input type="checkbox" id="master" class="env_selector">
+  <label for="staging">Staging</label><input type="checkbox" id="staging" class="env_selector">
+  <label for="production">Production</label><input type="checkbox" id="production" class="env_selector" checked="true">
+</div>
+<div>
+  <table id="exception_table" cellpadding="0" cellspacing="0" border="0"></table>
+</div>
+
 <script>
   $(document).ready(function(){
     var token = '<%= params[:token] %>',
@@ -117,23 +124,3 @@
     setInterval(check_for_updates, 1000);
   });
 </script>
-</head>
-<body>
-<div id="content">
-  <select id="projects" name="projects">Project
-    <option value="0">-- Select Project --</option>
-    <% for @project in projects %>
-      <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
-    <% end %>
-  </select><span id="status">-</span><br><br>
-  <div>
-    <label for="master">Master</label><input type="checkbox" id="master" class="env_selector">
-    <label for="staging">Staging</label><input type="checkbox" id="staging" class="env_selector">
-    <label for="production">Production</label><input type="checkbox" id="production" class="env_selector" checked="true">
-  </div>
-  <div>
-    <table id="exception_table" cellpadding="0" cellspacing="0" border="0"></table>
-  </div>
-</div>
-</body>
-</html>
