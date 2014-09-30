@@ -116,13 +116,15 @@ def recent_error_notices(since)
   Parallel.map(errors, :in_threads => 10) do |error|
     begin
       error.delete(:updated_at) # for some reason we're getting '0001-01-01 00:00:00 UTC' in here which causes a marshal error
+      error[:id] = error[:id].to_s
       error[:notices] = airbrake.notices(error[:id], :pages => 1, :raw => true).compact
+      error[:notices].each{|n| n[:id] = n[:id].to_s ; n[:project_id] = n[:project_id].to_s }
     rescue Faraday::Error::ParsingError => e
       puts "Ignoring notices for #{error}, got 500 from http://#{airbrake.account}.airbrake.io/errors/#{error[:id]}"
     rescue Exception => e
       puts "Ignoring exception #{e}"
     end
     error
-  end.compact.reduce({}){|h,e|h[e.id]=e;h}
+  end.compact.each_with_object({}){|e,h|h[e.id]=e}
 end
 
