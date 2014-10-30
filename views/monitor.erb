@@ -7,18 +7,21 @@
   .error-env { width: 20px; }
   .error-message { }
   .notice-at { white-space: nowrap; }
+  #time_now { display: inline-block; width: 250px; }
 </style>
 
-<select id="projects" name="projects">Project
-  <option value="0">-- Select Project --</option>
-  <% for @project in projects %>
-    <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
-  <% end %>
-</select><span id="status">-</span><br><br>
 <div>
+  Now: <span id="time_now">now Now NOW!</span>
   <label for="master">Master</label><input type="checkbox" id="master" class="env_selector">
   <label for="staging">Staging</label><input type="checkbox" id="staging" class="env_selector">
   <label for="production">Production</label><input type="checkbox" id="production" class="env_selector" checked="true">
+  <span style="display: inline-block; width: 50px;"></span>
+  <select id="projects" name="projects">Project
+    <option value="0">-- Select Project --</option>
+    <% for @project in projects %>
+      <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
+    <% end %>
+  </select><span id="status">-</span><br><br>
 </div>
 <div>
   <table id="exception_table" cellpadding="0" cellspacing="0" border="0"></table>
@@ -31,7 +34,8 @@
       projects = {},
       project_select = $('#projects'),
       exception_table = $('#exception_table'),
-      update_status = $('#status');
+      update_status = $('#status'),
+      time_now = $('#time_now');
 
     exception_table.dataTable({
       "aoColumns":[
@@ -125,5 +129,10 @@
     };
 
     setInterval(check_for_updates, 1000);
+
+    setInterval(function(){
+        var now = (new Date()).toISOString().replace("T", " ").replace(/\:\d+\.\d+Z/, " UTC");
+        if (now != time_now.text()) time_now.text(now);
+      }, 100);
   });
 </script>
