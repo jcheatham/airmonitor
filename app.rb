@@ -6,6 +6,7 @@ require 'logger'
 ENV["MEMCACHE_SERVERS"]  = ENV["MEMCACHIER_SERVERS"]  if ENV["MEMCACHIER_SERVERS"]
 ENV["MEMCACHE_USERNAME"] = ENV["MEMCACHIER_USERNAME"] if ENV["MEMCACHIER_USERNAME"]
 ENV["MEMCACHE_PASSWORD"] = ENV["MEMCACHIER_PASSWORD"] if ENV["MEMCACHIER_PASSWORD"]
+File.exists?(".env") && File.read(".env").each_line{|line| line.strip.split("=",2).tap{|k,v| ENV[k] = v } }
 
 TTL_PROJECTS = 60*60
 TTL_ERRORS = 24*60*60
@@ -16,25 +17,32 @@ set :dump_errors, true
 set :raise_errors, true
 
 use Rack::SSL if production?
+use Rack::Session::Cookie, :secret => ENV["COOKIE_SECRET"]
+use OmniAuth::Builder do
+  provider :google_oauth2, ENV["GOOGLE_OAUTH_CLIENT_ID"], ENV["GOOGLE_OAUTH_CLIENT_SECRET"], {:name => "google", :scope => "email"}
+end
+
+before /^(?!\/(auth|tester))/ do
+  redirect '/auth/google' unless session[:authorized_domain]
+end
+
+get '/auth/:provider/callback' do
+  authorize!(omniauth_domain(request.env['omniauth.auth']))
+end
+
+post '/auth/:provider/callback' do
+  authorize!(omniauth_domain(request.env['omniauth.auth']))
+end
+
+get '/auth/failure' do
+  "Sorry pal, this stuff is restricted."
+end
 
 get '/' do
-  puts "params #{params}"
-  if params[:subdomain] && params[:token]
-    redirect "/monitor/#{params[:subdomain]}/#{params[:token]}"
-  else
-    erb :index
-  end
+  erb :index, :locals => {:projects => projects, :account => project_settings[session[:authorized_domain]][0]}
 end
 
-get '/monitor/:subdomain/:token' do
-  erb :monitor, :projects => projects
-end
-
-get '/projects/:subdomain/:token.json' do
-  JSON.dump projects
-end
-
-get '/errors/:subdomain/:token/:project.json' do
+get '/errors/:project.json' do
   now = Time.now
   begin
     last_refresh, last_error, errors = store.get(cache_key) || [Time.at(0), Time.at(0), {}]
@@ -62,7 +70,7 @@ get '/errors/:subdomain/:token/:project.json' do
 end
 
 def cache_key
-  @cache_key ||= "air_monitor#{request.path}"
+  @cache_key ||= "air_monitor.#{session[:authorized_domain]}"
 end
 
 def merge(error_notices, new_error_notices)
@@ -96,17 +104,34 @@ def rough_frequency(error)
 end
 
 def airbrake
-  @airbrake ||= AirbrakeAPI::Client.new(:account => params[:subdomain], :auth_token => params[:token], :secure => true)
+  @airbrake ||= begin
+    account, token = project_settings[session[:authorized_domain]]
+    AirbrakeAPI::Client.new(:secure => true, :account => account, :auth_token => token)
+  end
 end
 
 def projects
-  store.fetch(cache_key, TTL_PROJECTS) do
+  store.fetch("#{cache_key}.projects", TTL_PROJECTS) do
     airbrake.projects
   end
 end
 
+def project_settings
+  @project_settings ||= Marshal.load(Base64.decode64(ENV["PROJECT_SETTINGS"]))
+end
+
 def store
   @store ||= Dalli::Client.new
+end
+
+def omniauth_domain(payload)
+  payload && payload[:info] && payload[:info][:email].to_s.split("@",2)[1].to_s.downcase
+end
+
+def authorize!(domain)
+  redirect '/auth/failure' unless project_settings[domain]
+  session[:authorized_domain] = domain
+  redirect '/'
 end
 
 def recent_error_notices(since)
@@ -127,4 +152,3 @@ def recent_error_notices(since)
     error
   end.compact.each_with_object({}){|e,h|h[e.id]=e}
 end
-

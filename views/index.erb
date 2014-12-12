@@ -1,9 +1,138 @@
-<form>
-  <label style="display:inline-block;width:100px;" for="subdomain">subdomain</label>
-  <input style="width:300px;" id="subdomain" name="subdomain" type="text" value=""><br/>
+<style>
+  .error-details { width: 20px; cursor: pointer;}
+  .error-frequency { width: 50px; }
+  .error-first { width: 100px; white-space: nowrap; }
+  .error-last { width: 100px; white-space: nowrap; }
+  .error-count { text-align:right; width: 50px; }
+  .error-env { width: 20px; }
+  .error-message { }
+  .notice-at { white-space: nowrap; }
+  #time_now { display: inline-block; width: 250px; }
+</style>
 
-  <label style="display:inline-block;width:100px;" for="token">auth token</label>
-  <input style="width:300px;" id="token" name="token" type="text" value=""><br/>
+<div>
+  Now: <span id="time_now">now Now NOW!</span>
+  <label for="master">Master</label><input type="checkbox" id="master" class="env_selector">
+  <label for="staging">Staging</label><input type="checkbox" id="staging" class="env_selector">
+  <label for="production">Production</label><input type="checkbox" id="production" class="env_selector" checked="true">
+  <span style="display: inline-block; width: 50px;"></span>
+  <select id="projects" name="projects">Project
+    <option value="0">-- Select Project --</option>
+    <% for @project in projects %>
+      <option value="<%= @project['id'] %>"><%= @project['name'] %></option>
+    <% end %>
+  </select><span id="status">-</span><br><br>
+</div>
+<div>
+  <table id="exception_table" cellpadding="0" cellspacing="0" border="0"></table>
+</div>
 
-  <input type="submit" value="MONITOR">
-</form>
+<script>
+  $(document).ready(function(){
+    var account = '<%= account %>',
+      project_id,
+      projects = {},
+      project_select = $('#projects'),
+      exception_table = $('#exception_table'),
+      update_status = $('#status'),
+      time_now = $('#time_now');
+
+    exception_table.dataTable({
+      "aoColumns":[
+        {"sTitle":"","sClass":"error-details","bSortable":false},
+        {"sTitle":"Frequency","sClass":"error-frequency","asSorting":["desc","asc"]},
+        {"sTitle":"First","sClass":"error-first","asSorting":["desc","asc"]},
+        {"sTitle":"Last","sClass":"error-last","asSorting":["desc","asc"]},
+        {"sTitle":"Count","sClass":"error-count","asSorting":["desc","asc"]},
+        {"sTitle":"Env","sClass":"error-env"},
+        {"sTitle":"Message","sClass":"error-message"}
+        ]
+    });
+
+    $.fn.dataTableExt.afnFiltering.push(function(oSettings, aData, iDataIndex) {
+      switch (aData[5]) {
+        case "M": return $('#master').prop('checked');
+        case "S": return $('#staging').prop('checked');
+        case "P": return $('#production').prop('checked');
+      }
+      return true;
+    });
+    $('.env_selector').on('change', function() { exception_table.fnDraw(); });
+
+    project_select.on('change', function() {
+      update_status.text("-");
+      project_id = project_select.val();
+      if (project_id == "0") { project_id = undefined; return; }
+      projects[project_id] = projects[project_id] || {last_update: 0, waiting: false, errors: {}};
+    });
+
+    function escape_html(unsafe) {
+      return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function add_details(oTable, group)
+    {
+      var data = '<div id="error_details">Showing '+projects[project_id].errors[group].notices.length+' notices.<br /><table cellpadding="0" cellspacing="0" border="0" style="padding-left:100px;">';
+      for (var i in projects[project_id].errors[group].notices) {
+        var n = projects[project_id].errors[group].notices[i];
+        data += '<tr><td class="notice-at"><a href="https://'+account+'.airbrake.io/projects/'+project_id+'/groups/'+n.project_id+'/notices/'+n.uuid+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a></td><td>'+ escape_html(n.error_message) +'</td></tr>';
+      }
+      data += '</table></div>';
+      return data;
+    }
+
+    $(document).on('click', '#exception_table span.details', function(){
+    //$('#exception_table span.details').on('click', function(){
+      var tr = $(this).parents('tr');
+      var group = tr.find('input[name="group"]').val();
+      tr = tr[0];
+      if (exception_table.fnIsOpen(tr))
+      {
+        this.innerHTML = "\u25B6";
+        exception_table.fnClose(tr);
+      }
+      else
+      {
+        this.innerHTML = "\u25BC";
+        exception_table.fnOpen(tr, add_details(exception_table, group));
+      }
+    });
+
+    function check_for_updates() {
+      if (!project_id) return;
+      var project = projects[project_id];
+      var now = Math.round(Date.now()/1000);
+      var elapsed = now - project.last_update;
+      if (elapsed < 30 || (project.waiting && (elapsed < 300 || !project.last_update))) return;
+
+      project.waiting = true;
+      update_status.text("Fetching updates...");
+
+      $.ajax({
+        dataType: "json", url: "/errors/"+project_id+".json"
+      }).done(function(data){
+        exception_table.fnClearTable();
+        project.errors = data;
+        for (var i in project.errors) {
+          var e = project.errors[i];
+          var details = '<span class="details">\u25B6</span><input type="hidden" name="group" value="'+e.id+'">';
+          var message = '<a href="https://'+account+'.airbrake.io/projects/'+project_id+'/groups/'+e.id+'/notices/'+e.notices[0].uuid+'" target="_blank">'+escape_html(e.error_message)+'</a>';
+          var env = (e.rails_env == "production" ? "P" : (e.rails_env == "staging" ? "S" : (e.rails_env == "master" ? "M" : e.rails_env)));
+          exception_table.fnAddData([ details, e.frequency.toFixed(2), e.created_at, e.most_recent_notice_at, e.notices_count, env , message]);
+        }
+      }).always(function(data){
+        update_status.text("-");
+        project.waiting = false;
+        project.last_update = now;
+        //exception_table.fnDraw();
+      });
+    };
+
+    setInterval(check_for_updates, 1000);
+
+    setInterval(function(){
+        var now = (new Date()).toISOString().replace("T", " ").replace(/\:\d+\.\d+Z/, " UTC");
+        if (now != time_now.text()) time_now.text(now);
+      }, 100);
+  });
+</script>
