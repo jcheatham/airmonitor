@@ -70,7 +70,7 @@ get '/errors/:project.json' do
 end
 
 def cache_key
-  @cache_key ||= "air_monitor.#{session[:authorized_domain]}"
+  @cache_key ||= "air_monitor.#{request.path}.#{session[:authorized_domain]}"
 end
 
 def merge(error_notices, new_error_notices)
@@ -111,7 +111,7 @@ def airbrake
 end
 
 def projects
-  store.fetch("#{cache_key}.projects", TTL_PROJECTS) do
+  store.fetch(cache_key, TTL_PROJECTS) do
     airbrake.projects
   end
 end
