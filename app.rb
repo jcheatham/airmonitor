@@ -6,7 +6,9 @@ require 'logger'
 ENV["MEMCACHE_SERVERS"]  = ENV["MEMCACHIER_SERVERS"]  if ENV["MEMCACHIER_SERVERS"]
 ENV["MEMCACHE_USERNAME"] = ENV["MEMCACHIER_USERNAME"] if ENV["MEMCACHIER_USERNAME"]
 ENV["MEMCACHE_PASSWORD"] = ENV["MEMCACHIER_PASSWORD"] if ENV["MEMCACHIER_PASSWORD"]
-File.exists?(".env") && File.read(".env").each_line{|line| line.strip.split("=",2).tap{|k,v| ENV[k] = v } }
+File.exists?(".env") && File.read(".env").each_line do |line|
+  line.partition("#").first.strip.split("=",2).tap{ |k,v| ENV[k] = v }
+end
 
 TTL_PROJECTS = 60*60
 TTL_ERRORS = 24*60*60
