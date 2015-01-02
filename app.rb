@@ -137,7 +137,7 @@ end
 
 def projects
   store.fetch("air_monitor.projects.#{airbrake.account}", TTL_PROJECTS) do
-    airbrake.projects
+    airbrake.projects.sort_by { |project| project.name.downcase }
   end
 end
 
