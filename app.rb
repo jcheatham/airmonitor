@@ -30,6 +30,7 @@ use OmniAuth::Builder do
 end
 
 before /^(?!\/(auth|tester|fail))/ do
+  puts "request: #{request.inspect}"
   redirect '/auth/google' unless session[:authorized_domain]
 end
 
