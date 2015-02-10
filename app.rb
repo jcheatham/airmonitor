@@ -14,19 +14,22 @@ TTL_PROJECTS = 60*60
 TTL_ERRORS = 24*60*60
 REFRESH_LIMIT = 30
 DEFAULT_TIME = Time.at(0)
+IP_WHITELIST = (ENV["IP_WHITELIST"] || "127.0.0.1").split(" ")
 
 set :logging, true
 set :dump_errors, true
 set :raise_errors, true
 
 use Rack::SSL if production?
-use Rack::Deflater
+use Rack::IpFilter, IpFilter::WhiteList.new(IP_WHITELIST), '/'
 use Rack::Session::Cookie, :secret => ENV["COOKIE_SECRET"]
+use Rack::Deflater
+
 use OmniAuth::Builder do
   provider :google_oauth2, ENV["GOOGLE_OAUTH_CLIENT_ID"], ENV["GOOGLE_OAUTH_CLIENT_SECRET"], {:name => "google", :scope => "email"}
 end
 
-before /^(?!\/(auth|tester))/ do
+before /^(?!\/(auth|tester|fail))/ do
   redirect '/auth/google' unless session[:authorized_domain]
 end
 
