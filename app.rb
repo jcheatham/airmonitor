@@ -100,7 +100,7 @@ def sanitized_airbrake_errors(project_id)
      :error_class   => raw[:error_class],
      :count         => raw[:notices_count],
      :most_recent   => raw[:most_recent_notice_at],
-     :message       => raw[:error_message]
+     :message       => raw[:error_message].to_s
     }
   end
 end
@@ -118,7 +118,7 @@ def sanitized_airbrake_error_notices(error_id)
   Array(airbrake_error_notices(error_id)).compact.map do |raw|
     {:uuid       => raw[:uuid],
      :created_at => raw[:created_at],
-     :message    => raw[:error_message]
+     :message    => raw[:error_message].to_s
     }
   end
 end
