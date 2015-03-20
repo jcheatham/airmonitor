@@ -93,7 +93,7 @@
       var item_base = '<tr><td class="notice-at"><a href="'+airbrake_host+'/projects/'+errors[error_id]["project_id"]+'/groups/'+error_id+'/notices/'
       var data = '<div id="error_details"><table cellpadding="0" cellspacing="0" border="0" style="padding-left:100px;">';
       $.each(errors[error_id]["notices"], function(i,n){
-        data += item_base+n.uuid+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a></td><td>'+ escapeHtml(n.error_message) +'</td></tr>';
+        data += item_base+n.uuid+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a></td><td>'+ escapeHtml(n.message) +'</td></tr>';
       });
       data += '</table></div>';
       return data;
@@ -137,12 +137,13 @@
         data: params
       }).done(function(data){
         $exception_table.fnClearTable();
-        errors = data;
-        $.each(errors, function(e_id,e) {
-          var details = '<span class="details">\u25B6</span><input type="hidden" name="context" value="'+e_id+'">';
-          var message = '<a href="'+airbrake_host+'/projects/'+e.project_id+'/groups/'+e_id+'/notices/'+e.notices[0].uuid+'" target="_blank">'+escapeHtml(e.error_message)+'</a>';
-          //var env = (e.rails_env == "production" ? "P" : (e.rails_env == "staging" ? "S" : (e.rails_env == "master" ? "M" : e.rails_env)));
-          $exception_table.fnAddData([ details, e.frequency.toFixed(2), e.created_at, e.most_recent_notice_at, e.notices_count, e.rails_env, project_index[e.project_id] || e.project_id, message]);
+        errors = {};
+        $.each(data, function(idx,e) {
+          errors[e.id] = e;
+          var details = '<span class="details">\u25B6</span><input type="hidden" name="context" value="'+e.id+'">';
+          var message = '<a href="'+airbrake_host+'/projects/'+e.project_id+'/groups/'+e.id+'" target="_blank">'+escapeHtml(e.message)+'</a>';
+          //var env = (e.environment == "production" ? "P" : (e.environment == "staging" ? "S" : (e.environment == "master" ? "M" : e.environment)));
+          $exception_table.fnAddData([ details, e.frequency.toFixed(2), e.created_at, e.most_recent, e.count, e.env, project_index[e.project_id] || e.project_id, message]);
         });
         $update_status.text("-");
       }).fail(function(jqXHR,textStatus,errorThrown){
