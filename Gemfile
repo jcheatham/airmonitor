@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
-ruby '2.1.5'
+ruby '2.1.6'
 
 gem 'puma'
 gem 'sinatra'
@@ -8,9 +8,9 @@ gem 'rake'
 gem 'rack-ssl', :require => 'rack/ssl'
 gem 'rack-ip_filter', :require => 'rack/ip_filter'
 gem 'dalli'
-gem 'airbrake-api'
 gem 'omniauth'
-gem "omniauth-google-oauth2"
+gem 'omniauth-google-oauth2'
+gem 'parallel'
 
 group :development do
   gem 'shotgun'

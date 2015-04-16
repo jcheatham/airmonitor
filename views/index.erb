@@ -17,7 +17,7 @@
   </div>
   <div>
     Projects:&nbsp;&nbsp;<select id="project_select" multiple><% projects.each do |project| %>
-      <option value="<%= project.id %>"<%= 'selected="selected"' if selected_projects.include?(project.id) %>><%=project.name%></option>
+      <option value="<%= project[:id] %>"<%= 'selected="selected"' if selected_projects.include?(project[:id]) %>><%=project[:name]%></option>
     <% end %></select>
   </div>
 </div>
@@ -93,7 +93,7 @@
       var item_base = '<tr><td class="notice-at"><a href="'+airbrake_host+'/projects/'+errors[error_id]["project_id"]+'/groups/'+error_id+'/notices/'
       var data = '<div id="error_details"><table cellpadding="0" cellspacing="0" border="0" style="padding-left:100px;">';
       $.each(errors[error_id]["notices"], function(i,n){
-        data += item_base+n.uuid+'" target="_blank" title="'+n.uuid+'">'+n.created_at+'</a></td><td>'+ escapeHtml(n.message) +'</td></tr>';
+        data += item_base+n.id+'" target="_blank" title="'+n.id+'">'+n.created_at+'</a></td><td>'+ escapeHtml(n.message) +'</td></tr>';
       });
       data += '</table></div>';
       return data;
