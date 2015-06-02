@@ -123,7 +123,11 @@ def airbrake_error_notices(project_id, error_id)
       {
         :id            => raw["id"].to_s,
         :created_at    => Time.parse(raw["createdAt"]),
-        :message       => raw["errors"][0]["message"].to_s
+        :message       => raw["errors"][0]["message"].to_s,
+        :backtrace     => (raw["errors"].first['backtrace'] || []).
+          map { |l| "#{l["file"]}:#{l["line"]}".sub("[PROJECT_ROOT]/", "") }.
+          reject { |l| l.start_with?("[GEM_ROOT]/gems/newrelic_rpm-") }[0..100],
+        :params        => raw["params"]
       }
     end
   else
@@ -157,6 +161,7 @@ def update_error(project_id, error, new_data)
     error[:notices].sort_by!{|a| a[:created_at] }.reverse!.uniq!{|b| b[:id] }
     error[:notices].slice!(30, error[:notices].length)
   end
+  error[:backtraces] = error[:notices].map{ |n| n[:backtrace] }.compact.group_by { |b| b }.map { |b, bs| {backtrace: b.join("\n"), count: bs.size} }
   error[:frequency] = error_frequency(error, now)
   set_error(error)
 end
