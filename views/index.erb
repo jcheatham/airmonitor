@@ -16,9 +16,15 @@
     <span id="status">-</span>
   </div>
   <div>
-    Projects:&nbsp;&nbsp;<select id="project_select" multiple><% projects.each do |project| %>
-      <option value="<%= project[:id] %>"<%= 'selected="selected"' if selected_projects.include?(project[:id]) %>><%=project[:name]%></option>
-    <% end %></select>
+    Projects:
+    <select id="project_select" multiple>
+      <% projects.each do |project| %>
+        <option value="<%= project[:id] %>"<%= 'selected="selected"' if selected_projects.include?(project[:id]) %>><%=project[:name]%></option>
+      <% end %>
+    </select>
+    <label>
+      <input type="checkbox" checked="checked" id="polling"> Auto-refresh
+    </label>
   </div>
 </div>
 <br/>
@@ -122,8 +128,12 @@
         return;
       }
 
+      // make project ids copy-pasteable
       var params = project_ids.map(function(x){ return "projects[]="+x; }).join("&");
       window.history.replaceState(null, "AirMonitor", "/?"+params);
+
+      // stop updating when poll is disabled
+      if(!$('#polling:checked')[0]) return;
 
       var now = Math.round(Date.now()/1000);
       var elapsed = now - last_update;
