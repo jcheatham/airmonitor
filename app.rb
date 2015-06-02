@@ -9,7 +9,8 @@ ENV["MEMCACHE_SERVERS"]  = ENV["MEMCACHIER_SERVERS"]  if ENV["MEMCACHIER_SERVERS
 ENV["MEMCACHE_USERNAME"] = ENV["MEMCACHIER_USERNAME"] if ENV["MEMCACHIER_USERNAME"]
 ENV["MEMCACHE_PASSWORD"] = ENV["MEMCACHIER_PASSWORD"] if ENV["MEMCACHIER_PASSWORD"]
 File.exists?(".env") && File.read(".env").each_line do |line|
-  line.partition("#").first.strip.split("=",2).tap{ |k,v| ENV[k] = v }
+  next if line.start_with?("#")
+  line.split("#").first.strip.split("=",2).tap{ |k,v| ENV[k] = v }
 end
 
 TTL_PROJECTS = 60*60
@@ -68,10 +69,6 @@ get '/errors.json' do
   JSON.dump update_projects(project_ids).flatten.compact
 end
 
-get '/blurb.json' do
-end
-
-
 def omniauth_domain(payload)
   payload && payload[:info] && payload[:info][:email].to_s.split("@",2)[1].to_s.downcase
 end
@@ -103,13 +100,14 @@ def airbrake_errors(project_id)
   case response.code.to_i
   when 200..299
     JSON.parse(response.body)["groups"].compact.map do |raw|
-      {:id            => raw["id"].to_s,
-       :project_id    => raw["projectId"].to_s,
-       :env           => raw["environment"],
-       :count         => raw["noticeCount"],
-       :created_at    => Time.parse(raw["createdAt"]),
-       :most_recent   => Time.parse(raw["lastNoticeAt"]),
-       :message       => raw["errors"][0]["message"].to_s
+      {
+        :id            => raw["id"].to_s,
+        :project_id    => raw["projectId"].to_s,
+        :env           => raw["environment"],
+        :count         => raw["noticeCount"],
+        :created_at    => Time.parse(raw["createdAt"]),
+        :most_recent   => Time.parse(raw["lastNoticeAt"]),
+        :message       => raw["errors"][0]["message"].to_s
       }
     end
   else
@@ -122,9 +120,14 @@ def airbrake_error_notices(project_id, error_id)
   case response.code.to_i
   when 200..299
     JSON.parse(response.body)["notices"].compact.map do |raw|
-      {:id            => raw["id"].to_s,
-       :created_at    => Time.parse(raw["createdAt"]),
-       :message       => raw["errors"][0]["message"].to_s
+      {
+        :id            => raw["id"].to_s,
+        :created_at    => Time.parse(raw["createdAt"]),
+        :message       => raw["errors"][0]["message"].to_s,
+        :backtrace     => (raw["errors"].first['backtrace'] || []).
+          map { |l| "#{l["file"]}:#{l["line"]}".sub("[PROJECT_ROOT]/", "") }.
+          reject { |l| l.start_with?("[GEM_ROOT]/gems/newrelic_rpm-") }[0..100],
+        :params        => raw["params"]
       }
     end
   else
@@ -158,6 +161,7 @@ def update_error(project_id, error, new_data)
     error[:notices].sort_by!{|a| a[:created_at] }.reverse!.uniq!{|b| b[:id] }
     error[:notices].slice!(30, error[:notices].length)
   end
+  error[:backtraces] = error[:notices].map{ |n| n[:backtrace] }.compact.group_by { |b| b }.map { |b, bs| {backtrace: b.join("\n"), count: bs.size} }
   error[:frequency] = error_frequency(error, now)
   set_error(error)
 end
@@ -210,7 +214,7 @@ def set_last_refresh(project_id, time)
 end
 
 def get_last_project_errors(project_id)
-  errors = cache_get("air_monitor.project_errors.#{project_id}", [])
+  cache_get("air_monitor.project_errors.#{project_id}", [])
 end
 
 def set_last_project_errors(project_id, errors)
