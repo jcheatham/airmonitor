@@ -3,7 +3,7 @@ task :default do
 end
 
 task :run do
-  exec "rackup config.ru"
+  exec "ruby app.rb"
 end
 
 task :deploy do

@@ -41,6 +41,7 @@
       $time_now = $('#time_now');
 
     $exception_table.dataTable({
+      "lengthMenu": [ 20, 50, 100 ],
       "aoColumns":[
         {"sTitle":"","sClass":"error-details","bSortable":false},
         {"sTitle":"Frequency","sClass":"error-frequency","asSorting":["desc","asc"]},
@@ -50,7 +51,7 @@
         {"sTitle":"Env","sClass":"error-env"},
         {"sTitle":"Project","sClass":"error-project"},
         {"sTitle":"Message","sClass":"error-message"}
-        ]
+      ]
     });
 
     $project_select.multiselect({selectedList: 4});
