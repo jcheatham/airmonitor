@@ -161,7 +161,10 @@ def update_error(project_id, error, new_data)
     error[:notices].sort_by!{|a| a[:created_at] }.reverse!.uniq!{|b| b[:id] }
     error[:notices].slice!(30, error[:notices].length)
   end
-  error[:backtraces] = error[:notices].map{ |n| n[:backtrace] }.compact.group_by { |b| b }.map { |b, bs| {backtrace: b.join("\n"), count: bs.size} }
+  error[:backtraces] = error[:notices].map{ |n| n[:backtrace] }.compact.
+    group_by { |b| b }.
+    sort_by { |_,bs| bs.size }.
+    map { |b, bs| {backtrace: b.join("\n"), count: bs.size} }
   error[:frequency] = error_frequency(error, now)
   set_error(error)
 end
