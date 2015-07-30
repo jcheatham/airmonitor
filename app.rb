@@ -5,19 +5,22 @@ require 'open-uri'
 require 'net/http'
 require 'net/https'
 
-ENV["MEMCACHE_SERVERS"]  = ENV["MEMCACHIER_SERVERS"]  if ENV["MEMCACHIER_SERVERS"]
-ENV["MEMCACHE_USERNAME"] = ENV["MEMCACHIER_USERNAME"] if ENV["MEMCACHIER_USERNAME"]
-ENV["MEMCACHE_PASSWORD"] = ENV["MEMCACHIER_PASSWORD"] if ENV["MEMCACHIER_PASSWORD"]
 File.exists?(".env") && File.read(".env").each_line do |line|
   next if line.start_with?("#")
   line.split("#").first.strip.split("=",2).tap{ |k,v| ENV[k] = v }
 end
+
+ENV["MEMCACHE_SERVERS"]  = ENV["MEMCACHIER_SERVERS"]  if ENV["MEMCACHIER_SERVERS"]
+ENV["MEMCACHE_USERNAME"] = ENV["MEMCACHIER_USERNAME"] if ENV["MEMCACHIER_USERNAME"]
+ENV["MEMCACHE_PASSWORD"] = ENV["MEMCACHIER_PASSWORD"] if ENV["MEMCACHIER_PASSWORD"]
 
 TTL_PROJECTS = 60*60
 TTL_ERRORS = 24*60*60
 REFRESH_LIMIT = 30
 DEFAULT_TIME = Time.at(0).freeze
 IP_WHITELIST = (ENV["IP_WHITELIST"] || "127.0.0.1").split(" ")
+PROJECT_THREADS = ENV["PROJECT_THREADS"] || 10
+ERROR_THREADS = ENV["ERROR_THREADS"] || 10
 W = 0.5
 ONE_MINUS_W = 1.0 - W
 
@@ -136,7 +139,7 @@ def airbrake_error_notices(project_id, error_id)
 end
 
 def update_projects(project_ids)
-  Parallel.map(project_ids, :in_threads => 10) do |project_id|
+  Parallel.map(project_ids, :in_threads => PROJECT_THREADS) do |project_id|
     update_project(project_id)
   end
 end
@@ -149,7 +152,7 @@ def update_project(project_id)
     get_last_project_errors(project_id)
   end
 
-  Parallel.map(errors, :in_threads => 10) do |error|
+  Parallel.map(errors, :in_threads => ERROR_THREADS) do |error|
     update_error(project_id, get_error(error[:id]), error)
   end
 end
