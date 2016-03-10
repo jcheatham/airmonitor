@@ -23,6 +23,11 @@
         <option value="<%= project[:id] %>"<%= 'selected="selected"' if selected_projects.include?(project[:id]) %>><%=project[:name]%></option>
       <% end %>
     </select>
+    <select id="environment_select" multiple>
+      <% ['production','staging','master'].each do |env| %>
+        <option value="<%= env %>"<%= 'selected="selected"' if selected_environments.include?(env) %>><%=env.capitalize%></option>
+      <% end %>
+    </select>
     <label>
       <input type="checkbox" checked="checked" id="polling"> Auto-refresh
     </label>
@@ -39,10 +44,13 @@
       errors = {},
       project_index = {},
       project_filters = {},
+      environment_index = {},
+      environment_filters = {},
       last_params = "",
       last_update = 0,
       waiting_for_update = false,
       $project_select = $('#project_select'),
+      $environment_select = $('#environment_select'),
       $exception_table = $('#exception_table'),
       $update_status = $('#status'),
       $time_now = $('#time_now');
@@ -64,8 +72,14 @@
     $project_select.multiselect({selectedList: 4});
     $project_select.on('change', updateFilters);
 
+    $environment_select.multiselect({selectedList: 3});
+    $environment_select.on('change', updateFilters);
+
     $.fn.dataTableExt.afnFiltering.push(function(oSettings, aData, iDataIndex) {
       return project_filters[aData[6]];
+    });
+    $.fn.dataTableExt.afnFiltering.push(function(oSettings, aData, iDataIndex) {
+      return environment_filters[aData[5]];
     });
 
     updateFilters();
@@ -117,20 +131,30 @@
         project_index[o.value] = o.text;
         project_filters[o.text] = o.selected;
       });
+      environment_index = {};
+      environment_filters = {};
+      $environment_select.find('option').each(function(i,o){
+        environment_index[o.value] = o.text;
+        environment_filters[o.value] = o.selected;
+      });
       update();
       $exception_table.fnDraw();
     }
 
     function update() {
       var project_ids = $project_select.val() || [];
-      if (project_ids.length < 1) {
+      var environment_ids = $environment_select.val() || [];
+
+      if (project_ids.length < 1 || environment_ids.length < 1) {
         $update_status.text("Nothing to do.");
         window.history.replaceState(null, "AirMonitor", "/");
         return;
       }
 
       // make project ids copy-pasteable
-      var params = project_ids.map(function(x){ return "projects[]="+x; }).join("&");
+      var project_params = project_ids.map(function(x){ return "projects[]="+x; }).join("&");
+      var environment_params = environment_ids.map(function(x){ return "environments[]="+x; }).join("&");
+      var params = project_params+"&"+environment_params;
       window.history.replaceState(null, "AirMonitor", "/?"+params);
 
       // stop updating when poll is disabled
@@ -157,8 +181,7 @@
           errors[e.id] = e;
           var details = '<span class="details">\u25B6</span><input type="hidden" name="context" value="'+e.id+'">';
           var message = '<a href="'+airbrake_host+'/projects/'+e.project_id+'/groups/'+e.id+'" target="_blank">'+escapeHtml(e.message)+'</a>';
-          //var env = (e.environment == "production" ? "P" : (e.environment == "staging" ? "S" : (e.environment == "master" ? "M" : e.environment)));
-          $exception_table.fnAddData([ details, e.frequency.toFixed(2), e.created_at, e.most_recent, e.count, e.env, project_index[e.project_id] || e.project_id, message]);
+          $exception_table.fnAddData([ details, parseFloat(e.frequency).toFixed(2), e.created_at, e.most_recent, e.count, e.env, project_index[e.project_id] || e.project_id, message]);
         });
         $update_status.text("-");
       }).fail(function(jqXHR,textStatus,errorThrown){

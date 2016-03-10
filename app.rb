@@ -57,7 +57,7 @@ get '/fail' do
 end
 
 get '/' do
-  erb :index, :locals => {:projects => airbrake_projects, :account => @account, :selected_projects => Array(params[:projects])}
+  erb :index, :locals => {:projects => airbrake_projects, :account => @account, :selected_projects => Array(params[:projects]), :selected_environments => Array(params[:environments])}
 end
 
 get '/flush' do
@@ -70,7 +70,8 @@ end
 
 get '/errors.json' do
   project_ids = airbrake_projects.map{|p| p[:id] } & params[:projects]
-  JSON.dump update_projects(project_ids).flatten.compact
+  errors =  update_projects(project_ids).flatten.compact
+  JSON.dump errors
 end
 
 def omniauth_domain(payload)
@@ -136,11 +137,13 @@ def airbrake_error_notices(project_id, error_id)
     end
   else
     puts "ERROR - Bad response for #{API_BASE_URL}/projects/#{project_id}/groups/#{error_id}/notices - #{response.code} - #{response.message}"
+    update_environments
   end
 end
 
 def update_projects(project_ids)
   Parallel.map(project_ids, :in_threads => PROJECT_THREADS) do |project_id|
+    update_environments(project_id)
     update_project(project_id)
   end
 end
@@ -171,6 +174,12 @@ def update_error(project_id, error, new_data)
     map { |b, bs| {backtrace: b.join("\n"), count: bs.size} }
   error[:frequency] = error_frequency(error, now)
   set_error(error)
+end
+
+def update_environments(project_id)
+  @environments ||= {}
+  errors = get_last_project_errors(project_id)
+  errors.each { |e| @environments[e[:env]] = 1 }
 end
 
 def error_frequency(error, now)
