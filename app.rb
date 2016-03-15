@@ -23,6 +23,7 @@ PROJECT_THREADS = (ENV["PROJECT_THREADS"] || 10).to_i
 ERROR_THREADS = (ENV["ERROR_THREADS"] || 10).to_i
 W = 0.5
 ONE_MINUS_W = 1.0 - W
+API_BASE_URL = "https://airbrake.io/api/v4"
 
 set :logging, true
 set :dump_errors, true
@@ -84,7 +85,7 @@ end
 
 def airbrake_projects
   cache.fetch("air_monitor.projects.#{@account}", TTL_PROJECTS) do
-    response = make_request("https://airbrake.io/api/v3/projects?key=#{@token}")
+    response = make_request("#{API_BASE_URL}/projects?key=#{@token}")
     case response.code.to_i
     when 200..299
       JSON.parse(response.body)["projects"].compact.map do |raw|
@@ -93,20 +94,20 @@ def airbrake_projects
         }
       end.sort_by{|p| p[:name].to_s.downcase }
     else
-      puts "ERROR - Bad response for http://airbrake.io/api/v3/projects - #{response.code} - #{response.message}"
+      puts "ERROR - Bad response for #{API_BASE_URL}/projects - #{response.code} - #{response.message}"
     end
   end
 end
 
 def airbrake_errors(project_id)
-  response = make_request("https://airbrake.io/api/v3/projects/#{project_id}/groups?key=#{@token}")
+  response = make_request("#{API_BASE_URL}/projects/#{project_id}/groups?key=#{@token}")
   case response.code.to_i
   when 200..299
     JSON.parse(response.body)["groups"].compact.map do |raw|
       {
         :id            => raw["id"].to_s,
         :project_id    => raw["projectId"].to_s,
-        :env           => raw["environment"],
+        :env           => raw["context"]["environment"],
         :count         => raw["noticeCount"],
         :created_at    => Time.parse(raw["createdAt"]),
         :most_recent   => Time.parse(raw["lastNoticeAt"]),
@@ -114,12 +115,12 @@ def airbrake_errors(project_id)
       }
     end
   else
-    puts "ERROR - Bad response for http://airbrake.io/api/v3/projects/#{project_id}/groups - #{response.code} - #{response.message}"
+    puts "ERROR - Bad response for #{API_BASE_URL}/projects/#{project_id}/groups - #{response.code} - #{response.message}"
   end
 end
 
 def airbrake_error_notices(project_id, error_id)
-  response = make_request("https://airbrake.io/api/v3/projects/#{project_id}/groups/#{error_id}/notices?key=#{@token}")
+  response = make_request("#{API_BASE_URL}/projects/#{project_id}/groups/#{error_id}/notices?key=#{@token}")
   case response.code.to_i
   when 200..299
     JSON.parse(response.body)["notices"].compact.map do |raw|
@@ -134,7 +135,7 @@ def airbrake_error_notices(project_id, error_id)
       }
     end
   else
-    puts "ERROR - Bad response for http://airbrake.io/api/v3/projects/#{project_id}/groups/#{error_id}/notices - #{response.code} - #{response.message}"
+    puts "ERROR - Bad response for #{API_BASE_URL}/projects/#{project_id}/groups/#{error_id}/notices - #{response.code} - #{response.message}"
   end
 end
 
