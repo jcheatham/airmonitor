@@ -57,7 +57,7 @@ get '/fail' do
 end
 
 get '/' do
-  erb :index, :locals => {:projects => airbrake_projects, :account => @account, :selected_projects => Array(params[:projects])}
+  erb :index, :locals => {:projects => airbrake_projects, :account => @account, :selected_projects => Array(params[:projects]), :selected_environments => Array(params[:environments])}
 end
 
 get '/flush' do
