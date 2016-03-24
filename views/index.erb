@@ -24,8 +24,8 @@
       <% end %>
     </select>
     <select id="environment_select" multiple>
-      <% ['production','staging','master'].each do |env| %>
-        <option value="<%= env %>"<%= 'selected="selected"' if selected_environments.include?(env) %>><%=env.capitalize%></option>
+      <% ['production','staging','master','other'].each do |env| %>
+        <option value="<%= env == 'other' ? '' : env %>"<%= 'selected="selected"' if selected_environments.include?(env) %>><%=env.capitalize%></option>
       <% end %>
     </select>
     <label>
@@ -72,7 +72,7 @@
     $project_select.multiselect({selectedList: 4});
     $project_select.on('change', updateFilters);
 
-    $environment_select.multiselect({selectedList: 3});
+    $environment_select.multiselect({selectedList: 4});
     $environment_select.on('change', updateFilters);
 
     $.fn.dataTableExt.afnFiltering.push(function(oSettings, aData, iDataIndex) {
@@ -145,7 +145,7 @@
       var project_ids = $project_select.val() || [];
       var environment_ids = $environment_select.val() || [];
 
-      if (project_ids.length < 1 || environment_ids.length < 1) {
+      if (project_ids.length < 1) {
         $update_status.text("Nothing to do.");
         window.history.replaceState(null, "AirMonitor", "/");
         return;
