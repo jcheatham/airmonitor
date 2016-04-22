@@ -24,13 +24,14 @@
       <% end %>
     </select>
     <select id="environment_select" multiple>
-      <% ['production','staging','master','other'].each do |env| %>
-        <option value="<%= env == 'other' ? '' : env %>"<%= 'selected="selected"' if selected_environments.include?(env) %>><%=env.capitalize%></option>
+      <% ['production','staging','master'].each do |env| %>
+        <option value="<%= env %>" <%= 'selected="selected"' if selected_environments.include?(env) %>><%=env.capitalize%></option>
       <% end %>
     </select>
-    <label>
-      <input type="checkbox" checked="checked" id="polling"> Auto-refresh
-    </label>
+    <div style="display: inline-block; margin-top: -25px; width: 200px;">
+      <span id="fetch_label" style="margin-left: 5px">Fetch every X seconds</span>
+      <div id="fetch_slider" style="margin: 5px"></div>
+    </div>
   </div>
 </div>
 <br/>
@@ -40,6 +41,7 @@
 
 <script>
   $(document).ready(function(){
+
     var airbrake_host = 'https://<%= account %>.airbrake.io',
       errors = {},
       project_index = {},
@@ -48,7 +50,9 @@
       environment_filters = {},
       last_params = "",
       last_update = 0,
+      fetch_interval = 60,
       waiting_for_update = false,
+      max_update_interval = 120,
       $project_select = $('#project_select'),
       $environment_select = $('#environment_select'),
       $exception_table = $('#exception_table'),
@@ -79,8 +83,20 @@
       return project_filters[aData[6]];
     });
     $.fn.dataTableExt.afnFiltering.push(function(oSettings, aData, iDataIndex) {
+      // treat environment_filters like a whitelist, if nothing is selected everything is permissible
+      if (Object.keys(environment_filters).every(function(k){return !environment_filters[k];})) { return true; }
       return environment_filters[aData[5]];
     });
+
+    $("#fetch_slider").slider({
+      min: 15,
+      max: 135,
+      step: 15,
+      value: fetch_interval,
+      slide: function(event, ui){ updateFetchInterval(ui.value); }
+    });
+
+    updateFetchInterval($("#fetch_slider").slider("value"));
 
     updateFilters();
 
@@ -141,6 +157,16 @@
       $exception_table.fnDraw();
     }
 
+    function updateFetchInterval(value) {
+      if (value < $("#fetch_slider").slider("option", "max")) {
+        fetch_interval = value;
+        $("#fetch_label").html("Fetch every "+fetch_interval+" seconds.");
+      } else {
+        fetch_interval = Infinity;
+        $("#fetch_label").html("Fetch disabled.");
+      }
+    }
+
     function update() {
       var project_ids = $project_select.val() || [];
       var environment_ids = $environment_select.val() || [];
@@ -152,18 +178,14 @@
       }
 
       // make project ids copy-pasteable
-      var project_params = project_ids.map(function(x){ return "projects[]="+x; }).join("&");
-      var environment_params = environment_ids.map(function(x){ return "environments[]="+x; }).join("&");
-      var params = project_params+"&"+environment_params;
+      var params = project_ids.map(function(x){ return "projects[]="+x; });
+      params = params.concat(environment_ids.map(function(x){ return "environments[]="+x; })).join("&");
       window.history.replaceState(null, "AirMonitor", "/?"+params);
-
-      // stop updating when poll is disabled
-      if(!$('#polling:checked')[0]) return;
 
       var now = Math.round(Date.now()/1000);
       var elapsed = now - last_update;
-      if (waiting_for_update && elapsed < 120) return;
-      if (params == last_params && elapsed < 30) return;
+      if (waiting_for_update && elapsed < max_update_interval) return;
+      if (params == last_params && elapsed < fetch_interval) return;
 
       last_params = params;
       last_update = now;

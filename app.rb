@@ -23,7 +23,6 @@ PROJECT_THREADS = (ENV["PROJECT_THREADS"] || 10).to_i
 ERROR_THREADS = (ENV["ERROR_THREADS"] || 10).to_i
 W = 0.5
 ONE_MINUS_W = 1.0 - W
-API_BASE_URL = "https://airbrake.io/api/v4"
 
 set :logging, true
 set :dump_errors, true
@@ -69,7 +68,7 @@ get '/projects.json' do
 end
 
 get '/errors.json' do
-  project_ids = airbrake_projects.map{|p| p[:id] } & params[:projects]
+  project_ids = airbrake_projects.map{|p| p[:id] } & Array(params[:projects])
   JSON.dump update_projects(project_ids).flatten.compact
 end
 
@@ -85,25 +84,20 @@ end
 
 def airbrake_projects
   cache.fetch("air_monitor.projects.#{@account}", TTL_PROJECTS) do
-    response = make_request("#{API_BASE_URL}/projects?key=#{@token}")
-    case response.code.to_i
-    when 200..299
-      JSON.parse(response.body)["projects"].compact.map do |raw|
-        {:id   => raw["id"].to_s,
-         :name => raw["name"]
+    make_airbrake_request("projects") do |response|
+      response["projects"].compact.map do |raw|
+        {
+          :id   => raw["id"].to_s,
+          :name => raw["name"]
         }
       end.sort_by{|p| p[:name].to_s.downcase }
-    else
-      puts "ERROR - Bad response for #{API_BASE_URL}/projects - #{response.code} - #{response.message}"
     end
   end
 end
 
 def airbrake_errors(project_id)
-  response = make_request("#{API_BASE_URL}/projects/#{project_id}/groups?key=#{@token}")
-  case response.code.to_i
-  when 200..299
-    JSON.parse(response.body)["groups"].compact.map do |raw|
+  make_airbrake_request("projects", project_id, "groups", :limit => 100) do |response|
+    response["groups"].compact.map do |raw|
       {
         :id            => raw["id"].to_s,
         :project_id    => raw["projectId"].to_s,
@@ -114,16 +108,12 @@ def airbrake_errors(project_id)
         :message       => raw["errors"][0]["message"].to_s
       }
     end
-  else
-    puts "ERROR - Bad response for #{API_BASE_URL}/projects/#{project_id}/groups - #{response.code} - #{response.message}"
   end
 end
 
 def airbrake_error_notices(project_id, error_id)
-  response = make_request("#{API_BASE_URL}/projects/#{project_id}/groups/#{error_id}/notices?key=#{@token}")
-  case response.code.to_i
-  when 200..299
-    JSON.parse(response.body)["notices"].compact.map do |raw|
+  make_airbrake_request("projects", project_id, "groups", error_id, "notices") do |response|
+    response["notices"].compact.map do |raw|
       {
         :id            => raw["id"].to_s,
         :created_at    => Time.parse(raw["createdAt"]),
@@ -134,8 +124,6 @@ def airbrake_error_notices(project_id, error_id)
         :params        => raw["params"]
       }
     end
-  else
-    puts "ERROR - Bad response for #{API_BASE_URL}/projects/#{project_id}/groups/#{error_id}/notices - #{response.code} - #{response.message}"
   end
 end
 
@@ -229,13 +217,24 @@ def set_last_project_errors(project_id, errors)
   errors
 end
 
-def make_request(url)
-  # stolen from https://github.com/bf4/airbrake_client/blob/master/airbrake_client.rb
-  uri = URI(url)
+def make_airbrake_request(*parts, params)
+  # based loosely on https://github.com/bf4/airbrake_client/blob/master/airbrake_client.rb
+  unless params.is_a?(Hash)
+    parts.push(params)
+    params = nil
+  end
+  uri = URI(parts.unshift("https://airbrake.io/api/v4").join("/"))
+  uri.query = URI.encode_www_form({:key => @token}.merge(Hash(params)))
   http = Net::HTTP.new(uri.host, uri.port)
   if http.use_ssl = (uri.scheme == 'https')
     http.verify_mode = OpenSSL::SSL::VERIFY_NONE
   end
   request = Net::HTTP::Get.new(uri.request_uri)
-  http.request(request)
+  response = http.request(request)
+  case response.code.to_i
+  when 200..299
+    yield JSON.parse(response.body)
+  else
+    puts "ERROR - Bad response for #{uri.to_s} - #{response.code} - #{response.message}"
+  end
 end
